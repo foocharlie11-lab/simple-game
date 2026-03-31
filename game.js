@@ -147,6 +147,41 @@ class Coin {
     }
 }
 
+// Spike class
+class Spike {
+    constructor(x, y, width = 20, height = 20) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    draw() {
+        // Draw spike as a triangle
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.width / 2, this.y);
+        ctx.lineTo(this.x + this.width, this.y + this.height);
+        ctx.lineTo(this.x, this.y + this.height);
+        ctx.closePath();
+        ctx.fill();
+
+        // Add outline
+        ctx.strokeStyle = '#a93226';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    collidesWith(obj) {
+        return (
+            obj.x < this.x + this.width &&
+            obj.x + obj.width > this.x &&
+            obj.y < this.y + this.height &&
+            obj.y + obj.height > this.y
+        );
+    }
+}
+
 // Goal class
 class Goal {
     constructor(x, y) {
@@ -211,6 +246,10 @@ const levels = [
             new Coin(330, 250),
             new Coin(650, 220),
         ],
+        spikes: [
+            new Spike(350, 430, 20, 20),
+            new Spike(600, 360, 20, 20),
+        ],
         goal: new Goal(900, 450)
     },
     {
@@ -237,6 +276,12 @@ const levels = [
             new Coin(690, 350),
             new Coin(550, 230),
             new Coin(800, 220),
+        ],
+        spikes: [
+            new Spike(200, 400, 20, 20),
+            new Spike(370, 400, 20, 20),
+            new Spike(540, 320, 20, 20),
+            new Spike(720, 360, 20, 20),
         ],
         goal: new Goal(900, 450)
     },
@@ -270,6 +315,15 @@ const levels = [
             new Coin(600, 190),
             new Coin(830, 270),
         ],
+        spikes: [
+            new Spike(140, 460, 20, 20),
+            new Spike(250, 400, 20, 20),
+            new Spike(170, 320, 20, 20),
+            new Spike(360, 320, 20, 20),
+            new Spike(520, 380, 20, 20),
+            new Spike(620, 340, 20, 20),
+            new Spike(750, 280, 20, 20),
+        ],
         goal: new Goal(900, 480)
     }
 ];
@@ -277,6 +331,7 @@ const levels = [
 let platforms = [];
 let enemies = [];
 let coins = [];
+let spikes = [];
 let goal = null;
 
 function loadLevel(levelNum) {
@@ -286,6 +341,7 @@ function loadLevel(levelNum) {
     platforms = levelData.platforms;
     enemies = levelData.enemies;
     coins = levelData.coins.map(c => new Coin(c.x, c.y));
+    spikes = levelData.spikes;
     goal = new Goal(levelData.goal.x, levelData.goal.y);
     
     player.x = 50;
@@ -346,6 +402,13 @@ function updatePlayer() {
         }
     }
 
+    // Spike collision
+    for (let spike of spikes) {
+        if (spike.collidesWith(player)) {
+            gameState = GAME_STATE.GAME_OVER;
+        }
+    }
+
     // Coin collection
     for (let coin of coins) {
         if (!coin.collected && coin.collidesWith(player)) {
@@ -394,6 +457,7 @@ function gameLoop() {
 
         // Draw entities
         platforms.forEach(p => p.draw());
+        spikes.forEach(s => s.draw());
         enemies.forEach(e => e.draw());
         coins.filter(c => !c.collected).forEach(c => c.draw());
         goal.draw();
