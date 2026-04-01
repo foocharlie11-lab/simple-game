@@ -1,8 +1,10 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-canvas.width = 1000;
-canvas.height = 600;
+canvas.width = 1200;
+canvas.height = 320;
+const worldWidth = 2400;
+let cameraX = 0;
 
 let currentLevel = 1;
 let score = 0;
@@ -19,7 +21,7 @@ let gameState = GAME_STATE.PLAYING;
 // Player object
 const player = {
     x: 50,
-    y: 400,
+    y: 260,
     width: 30,
     height: 40,
     velocityY: 0,
@@ -27,7 +29,7 @@ const player = {
     jumping: false,
     grounded: false,
     speed: 5,
-    jumpPower: 15,
+    jumpPower: 14,
     maxSpeedX: 8
 };
 
@@ -42,17 +44,29 @@ window.addEventListener('keyup', (e) => {
 
 // Platform class
 class Platform {
-    constructor(x, y, width, height, color = '#8B7355') {
+    constructor(x, y, width, height, color = '#8B7355', dx = 0, minX = null, maxX = null) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.color = color;
+        this.dx = dx;
+        this.minX = minX;
+        this.maxX = maxX;
     }
 
-    draw() {
+    update() {
+        if (!this.dx || this.minX === null || this.maxX === null) return;
+        this.x += this.dx;
+        if (this.x <= this.minX || this.x + this.width >= this.maxX) {
+            this.dx *= -1;
+            this.x = Math.max(this.minX, Math.min(this.x, this.maxX - this.width));
+        }
+    }
+
+    draw(offset = 0) {
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(this.x - offset, this.y, this.width, this.height);
     }
 
     isTouching(obj) {
@@ -86,15 +100,16 @@ class Enemy {
         }
     }
 
-    draw() {
+    draw(offset = 0) {
         ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(this.x - offset, this.y, this.width, this.height);
         // Draw eyes
         ctx.fillStyle = '#000';
-        ctx.arc(this.x + 8, this.y + 8, 3, 0, Math.PI * 2);
+        ctx.beginPath();
+        ctx.arc(this.x + 8 - offset, this.y + 8, 3, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(this.x + this.width - 8, this.y + 8, 3, 0, Math.PI * 2);
+        ctx.arc(this.x + this.width - 8 - offset, this.y + 8, 3, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -123,9 +138,9 @@ class Coin {
         this.rotation += 0.1;
     }
 
-    draw() {
+    draw(offset = 0) {
         ctx.save();
-        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.translate(this.x + this.width / 2 - offset, this.y + this.height / 2);
         ctx.rotate(this.rotation);
         ctx.fillStyle = '#f1c40f';
         ctx.beginPath();
@@ -156,13 +171,13 @@ class Spike {
         this.height = height;
     }
 
-    draw() {
+    draw(offset = 0) {
         // Draw spike as a triangle
         ctx.fillStyle = '#c0392b';
         ctx.beginPath();
-        ctx.moveTo(this.x + this.width / 2, this.y);
-        ctx.lineTo(this.x + this.width, this.y + this.height);
-        ctx.lineTo(this.x, this.y + this.height);
+        ctx.moveTo(this.x + this.width / 2 - offset, this.y);
+        ctx.lineTo(this.x + this.width - offset, this.y + this.height);
+        ctx.lineTo(this.x - offset, this.y + this.height);
         ctx.closePath();
         ctx.fill();
 
@@ -196,20 +211,20 @@ class Goal {
         this.glow += 0.05;
     }
 
-    draw() {
+    draw(offset = 0) {
         const alpha = Math.sin(this.glow) * 0.3 + 0.7;
         ctx.fillStyle = `rgba(46, 204, 113, ${alpha})`;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(this.x - offset, this.y, this.width, this.height);
         ctx.strokeStyle = '#2ecc71';
         ctx.lineWidth = 3;
-        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.strokeRect(this.x - offset, this.y, this.width, this.height);
         
         // Draw flag on top
         ctx.fillStyle = '#f39c12';
         ctx.beginPath();
-        ctx.moveTo(this.x + this.width / 2, this.y);
-        ctx.lineTo(this.x + this.width / 2 + 20, this.y + 10);
-        ctx.lineTo(this.x + this.width / 2, this.y + 20);
+        ctx.moveTo(this.x + this.width / 2 - offset, this.y);
+        ctx.lineTo(this.x + this.width / 2 + 20 - offset, this.y + 10);
+        ctx.lineTo(this.x + this.width / 2 - offset, this.y + 20);
         ctx.closePath();
         ctx.fill();
     }
@@ -224,107 +239,132 @@ class Goal {
     }
 }
 
+function drawBackground() {
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#1c92d2');
+    gradient.addColorStop(1, '#f2fcfe');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Simple parallax clouds
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    const cloudOffset = (cameraX * 0.22) % (canvas.width * 2);
+    for (let i = 0; i < 6; i++) {
+        const x = (i * 380 - cloudOffset + canvas.width * 2) % (canvas.width * 2) - 200;
+        ctx.beginPath();
+        ctx.ellipse(x, 70, 72, 24, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + 64, 72, 58, 20, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + 118, 68, 78, 26, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 8);
+}
+
 // Level configurations
 const levels = [
     {
         platforms: [
-            new Platform(0, 550, 1000, 50, '#8B7355'),
-            new Platform(200, 450, 150, 20),
-            new Platform(450, 380, 150, 20),
-            new Platform(700, 450, 150, 20),
-            new Platform(300, 280, 150, 20),
-            new Platform(600, 250, 150, 20),
+            new Platform(0, 300, worldWidth, 50, '#8B7355'),
+            new Platform(180, 240, 180, 20),
+            new Platform(520, 190, 170, 20),
+            new Platform(880, 240, 160, 20),
+            new Platform(1180, 160, 170, 20),
+            new Platform(1520, 200, 170, 20),
+            new Platform(1880, 140, 140, 20, '#8B7355', 1.8, 1800, 2100),
         ],
         enemies: [
-            new Enemy(250, 410, 30, 30, 200, 400),
-            new Enemy(500, 340, 30, 30, 450, 600),
+            new Enemy(240, 270, 30, 30, 180, 360),
+            new Enemy(560, 220, 30, 30, 520, 690),
+            new Enemy(920, 280, 30, 30, 880, 1040),
         ],
         coins: [
-            new Coin(230, 420),
-            new Coin(500, 350),
-            new Coin(750, 420),
-            new Coin(330, 250),
-            new Coin(650, 220),
+            new Coin(220, 260),
+            new Coin(540, 210),
+            new Coin(940, 270),
+            new Coin(1210, 190),
+            new Coin(1550, 230),
+            new Coin(1900, 170),
         ],
         spikes: [
-            new Spike(350, 430, 20, 20),
-            new Spike(600, 360, 20, 20),
+            new Spike(420, 340, 20, 20),
+            new Spike(760, 340, 20, 20),
+            new Spike(1340, 340, 20, 20),
+            new Spike(1700, 340, 20, 20),
         ],
-        goal: new Goal(900, 450)
+        goal: new Goal(2160, 240)
     },
     {
         platforms: [
-            new Platform(0, 550, 1000, 50, '#8B7355'),
-            new Platform(100, 480, 120, 20),
-            new Platform(300, 420, 120, 20),
-            new Platform(120, 340, 120, 20),
-            new Platform(400, 340, 120, 20),
-            new Platform(650, 380, 120, 20),
-            new Platform(500, 260, 120, 20),
-            new Platform(750, 250, 120, 20),
+            new Platform(0, 300, worldWidth, 50, '#8B7355'),
+            new Platform(140, 230, 140, 20),
+            new Platform(420, 170, 140, 20),
+            new Platform(760, 220, 140, 20),
+            new Platform(1100, 130, 140, 20, '#8B7355', 2, 1080, 1220),
+            new Platform(1470, 170, 160, 20),
+            new Platform(1820, 120, 160, 20),
+            new Platform(2080, 75, 120, 20),
         ],
         enemies: [
-            new Enemy(100, 440, 30, 30, 100, 220),
-            new Enemy(350, 380, 30, 30, 300, 520),
-            new Enemy(600, 340, 30, 30, 500, 770),
+            new Enemy(180, 290, 30, 30, 140, 260),
+            new Enemy(460, 230, 30, 30, 420, 560),
+            new Enemy(820, 290, 30, 30, 760, 900),
+            new Enemy(1540, 230, 30, 30, 1470, 1630),
         ],
         coins: [
-            new Coin(140, 450),
-            new Coin(340, 390),
-            new Coin(160, 310),
-            new Coin(450, 310),
-            new Coin(690, 350),
-            new Coin(550, 230),
-            new Coin(800, 220),
+            new Coin(180, 300),
+            new Coin(440, 240),
+            new Coin(780, 290),
+            new Coin(1130, 190),
+            new Coin(1520, 230),
+            new Coin(1850, 170),
+            new Coin(2100, 135),
         ],
         spikes: [
-            new Spike(200, 400, 20, 20),
-            new Spike(370, 400, 20, 20),
-            new Spike(540, 320, 20, 20),
-            new Spike(720, 360, 20, 20),
-        ],
-        goal: new Goal(900, 450)
-    },
-    {
-        platforms: [
-            new Platform(0, 550, 1000, 50, '#8B7355'),
-            new Platform(50, 480, 100, 20),
-            new Platform(180, 420, 100, 20),
-            new Platform(80, 340, 100, 20),
-            new Platform(280, 340, 100, 20),
-            new Platform(450, 400, 100, 20),
-            new Platform(350, 280, 100, 20),
-            new Platform(650, 360, 100, 20),
-            new Platform(550, 220, 100, 20),
-            new Platform(800, 300, 100, 20),
-        ],
-        enemies: [
-            new Enemy(50, 440, 30, 30, 50, 150),
-            new Enemy(200, 380, 30, 30, 180, 280),
-            new Enemy(300, 300, 30, 30, 80, 380),
-            new Enemy(500, 360, 30, 30, 450, 550),
-        ],
-        coins: [
-            new Coin(80, 450),
-            new Coin(220, 390),
-            new Coin(120, 310),
-            new Coin(320, 310),
-            new Coin(480, 370),
-            new Coin(400, 250),
-            new Coin(690, 330),
-            new Coin(600, 190),
-            new Coin(830, 270),
-        ],
-        spikes: [
-            new Spike(140, 460, 20, 20),
-            new Spike(250, 400, 20, 20),
-            new Spike(170, 320, 20, 20),
-            new Spike(360, 320, 20, 20),
-            new Spike(520, 380, 20, 20),
             new Spike(620, 340, 20, 20),
-            new Spike(750, 280, 20, 20),
+            new Spike(960, 340, 20, 20),
+            new Spike(1710, 340, 20, 20),
         ],
-        goal: new Goal(900, 480)
+        goal: new Goal(2200, 185)
+    },
+    {
+        platforms: [
+            new Platform(0, 300, worldWidth, 50, '#8B7355'),
+            new Platform(100, 230, 120, 20),
+            new Platform(340, 180, 120, 20),
+            new Platform(620, 220, 120, 20),
+            new Platform(930, 160, 140, 20),
+            new Platform(1240, 110, 140, 20, '#8B7355', 1.6, 1220, 1360),
+            new Platform(1590, 150, 160, 20),
+            new Platform(1900, 100, 160, 20),
+            new Platform(2140, 50, 120, 20),
+        ],
+        enemies: [
+            new Enemy(120, 300, 30, 30, 100, 220),
+            new Enemy(360, 260, 30, 30, 340, 460),
+            new Enemy(650, 310, 30, 30, 620, 740),
+            new Enemy(980, 240, 30, 30, 930, 1080),
+            new Enemy(1610, 230, 30, 30, 1590, 1750),
+        ],
+        coins: [
+            new Coin(100, 310),
+            new Coin(360, 260),
+            new Coin(640, 300),
+            new Coin(950, 230),
+            new Coin(1260, 180),
+            new Coin(1600, 220),
+            new Coin(1930, 170),
+            new Coin(2160, 130),
+        ],
+        spikes: [
+            new Spike(470, 340, 20, 20),
+            new Spike(820, 340, 20, 20),
+            new Spike(1480, 340, 20, 20),
+            new Spike(1810, 340, 20, 20),
+        ],
+        goal: new Goal(2230, 140)
     }
 ];
 
@@ -345,7 +385,7 @@ function loadLevel(levelNum) {
     goal = new Goal(levelData.goal.x, levelData.goal.y);
     
     player.x = 50;
-    player.y = 400;
+    player.y = 260;
     player.velocityY = 0;
     player.velocityX = 0;
     player.grounded = false;
@@ -386,14 +426,17 @@ function updatePlayer() {
         }
     }
 
-    // Boundary collision
+    // Boundary collision in the full level world
     if (player.x < 0) player.x = 0;
-    if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+    if (player.x + player.width > worldWidth) player.x = worldWidth - player.width;
 
     // Bottom death
     if (player.y > canvas.height) {
         gameState = GAME_STATE.GAME_OVER;
     }
+
+    // Camera follows the player horizontally
+    cameraX = Math.min(Math.max(player.x - canvas.width / 3, 0), worldWidth - canvas.width);
 
     // Enemy collision
     for (let enemy of enemies) {
@@ -427,40 +470,41 @@ function updatePlayer() {
 
 // Draw player
 function drawPlayer() {
+    const offset = cameraX;
     ctx.fillStyle = '#3498db';
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillRect(player.x - offset, player.y, player.width, player.height);
     
     // Draw eyes
     ctx.fillStyle = '#fff';
-    ctx.fillRect(player.x + 5, player.y + 10, 8, 8);
-    ctx.fillRect(player.x + 17, player.y + 10, 8, 8);
+    ctx.fillRect(player.x + 5 - offset, player.y + 10, 8, 8);
+    ctx.fillRect(player.x + 17 - offset, player.y + 10, 8, 8);
     
     // Draw pupils
     ctx.fillStyle = '#000';
-    ctx.fillRect(player.x + 7, player.y + 12, 4, 4);
-    ctx.fillRect(player.x + 19, player.y + 12, 4, 4);
+    ctx.fillRect(player.x + 7 - offset, player.y + 12, 4, 4);
+    ctx.fillRect(player.x + 19 - offset, player.y + 12, 4, 4);
 }
 
 // Main game loop
 function gameLoop() {
-    // Clear canvas
-    ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw background and then the game world
+    drawBackground();
 
     if (gameState === GAME_STATE.PLAYING) {
         updatePlayer();
         
         // Update entities
+        platforms.forEach(p => p.update());
         enemies.forEach(e => e.update());
         coins.forEach(c => c.update());
         goal.update();
 
         // Draw entities
-        platforms.forEach(p => p.draw());
-        spikes.forEach(s => s.draw());
-        enemies.forEach(e => e.draw());
-        coins.filter(c => !c.collected).forEach(c => c.draw());
-        goal.draw();
+        platforms.forEach(p => p.draw(cameraX));
+        spikes.forEach(s => s.draw(cameraX));
+        enemies.forEach(e => e.draw(cameraX));
+        coins.filter(c => !c.collected).forEach(c => c.draw(cameraX));
+        goal.draw(cameraX);
         drawPlayer();
     } else if (gameState === GAME_STATE.GAME_OVER) {
         document.getElementById('gameOver').classList.add('show');
