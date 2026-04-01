@@ -101,15 +101,105 @@ class Enemy {
     }
 
     draw(offset = 0) {
+        const centerX = this.x - offset + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        const radius = Math.max(this.width, this.height) / 2;
+
         ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(this.x - offset, this.y, this.width, this.height);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fill();
+
         // Draw eyes
         ctx.fillStyle = '#000';
         ctx.beginPath();
-        ctx.arc(this.x + 8 - offset, this.y + 8, 3, 0, Math.PI * 2);
+        ctx.arc(centerX - 8, centerY - 6, 3, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(this.x + this.width - 8 - offset, this.y + 8, 3, 0, Math.PI * 2);
+        ctx.arc(centerX + 8, centerY - 6, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    collidesWith(obj) {
+        return (
+            obj.x < this.x + this.width &&
+            obj.x + obj.width > this.x &&
+            obj.y < this.y + this.height &&
+            obj.y + obj.height > this.y
+        );
+    }
+}
+
+// Bird class
+class Bird {
+    constructor(x, y, minX, maxX, speed = 3) {
+        this.x = x;
+        this.y = y;
+        this.width = 40;
+        this.height = 28;
+        this.minX = minX;
+        this.maxX = maxX;
+        this.speed = speed;
+        this.direction = Math.random() > 0.5 ? 1 : -1;
+        this.wingFlap = 0;
+    }
+
+    update() {
+        this.x += this.speed * this.direction;
+        if (this.x <= this.minX || this.x + this.width >= this.maxX) {
+            this.direction *= -1;
+        }
+        this.wingFlap += 0.2;
+    }
+
+    draw(offset = 0) {
+        const centerX = this.x - offset + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        const wingOffset = Math.sin(this.wingFlap) * 8;
+
+        // Body
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Left wing
+        ctx.fillStyle = '#34495e';
+        ctx.beginPath();
+        ctx.moveTo(centerX - 10, centerY);
+        ctx.quadraticCurveTo(centerX - 40, centerY - 20 - wingOffset, centerX - 10, centerY - 8);
+        ctx.lineTo(centerX - 10, centerY + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Right wing
+        ctx.beginPath();
+        ctx.moveTo(centerX + 10, centerY);
+        ctx.quadraticCurveTo(centerX + 40, centerY - 20 + wingOffset, centerX + 10, centerY - 8);
+        ctx.lineTo(centerX + 10, centerY + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Wing details
+        ctx.strokeStyle = '#22313f';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX - 18, centerY - 4);
+        ctx.lineTo(centerX - 28, centerY - 12 - wingOffset / 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(centerX + 18, centerY - 4);
+        ctx.lineTo(centerX + 28, centerY - 12 + wingOffset / 2);
+        ctx.stroke();
+
+        // Eye
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(centerX + 10, centerY - 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(centerX + 11, centerY - 6, 2, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -294,6 +384,11 @@ const levels = [
             new Spike(1340, 340, 20, 20),
             new Spike(1700, 340, 20, 20),
         ],
+        birds: [
+            new Bird(320, 70, 260, 420, 2.2),
+            new Bird(1020, 90, 960, 1120, 2.5),
+            new Bird(1580, 80, 1500, 1660, 2.8),
+        ],
         goal: new Goal(2160, 240)
     },
     {
@@ -327,6 +422,11 @@ const levels = [
             new Spike(960, 340, 20, 20),
             new Spike(1710, 340, 20, 20),
         ],
+        birds: [
+            new Bird(520, 90, 480, 640, 2.3),
+            new Bird(860, 70, 820, 940, 2.7),
+            new Bird(1580, 100, 1540, 1620, 2.5),
+        ],
         goal: new Goal(2200, 185)
     },
     {
@@ -342,7 +442,7 @@ const levels = [
             new Platform(2140, 50, 120, 20),
         ],
         enemies: [
-            new Enemy(120, 300, 30, 30, 100, 220),
+            new Enemy(220, 300, 30, 30, 200, 320),
             new Enemy(360, 260, 30, 30, 340, 460),
             new Enemy(650, 310, 30, 30, 620, 740),
             new Enemy(980, 240, 30, 30, 930, 1080),
@@ -364,7 +464,14 @@ const levels = [
             new Spike(1480, 340, 20, 20),
             new Spike(1810, 340, 20, 20),
         ],
-        goal: new Goal(2230, 140)
+        birds: [
+            new Bird(240, 80, 200, 320, 3),
+            new Bird(680, 95, 640, 760, 2.4),
+            new Bird(1260, 75, 1220, 1300, 2.6),
+        ],
+        goal: new Goal(2230, 140),
+        spawnX: 20,
+        spawnY: 260
     }
 ];
 
@@ -372,6 +479,7 @@ let platforms = [];
 let enemies = [];
 let coins = [];
 let spikes = [];
+let birds = [];
 let goal = null;
 
 function loadLevel(levelNum) {
@@ -382,10 +490,11 @@ function loadLevel(levelNum) {
     enemies = levelData.enemies;
     coins = levelData.coins.map(c => new Coin(c.x, c.y));
     spikes = levelData.spikes;
+    birds = levelData.birds || [];
     goal = new Goal(levelData.goal.x, levelData.goal.y);
     
-    player.x = 50;
-    player.y = 260;
+    player.x = levelData.spawnX ?? 50;
+    player.y = levelData.spawnY ?? 260;
     player.velocityY = 0;
     player.velocityX = 0;
     player.grounded = false;
@@ -445,6 +554,13 @@ function updatePlayer() {
         }
     }
 
+    // Bird collision
+    for (let bird of birds) {
+        if (bird.collidesWith(player)) {
+            gameState = GAME_STATE.GAME_OVER;
+        }
+    }
+
     // Spike collision
     for (let spike of spikes) {
         if (spike.collidesWith(player)) {
@@ -471,18 +587,32 @@ function updatePlayer() {
 // Draw player
 function drawPlayer() {
     const offset = cameraX;
+    const centerX = player.x - offset + player.width / 2;
+    const centerY = player.y + player.height / 2;
+    const radius = Math.max(player.width, player.height) / 2;
+
     ctx.fillStyle = '#3498db';
-    ctx.fillRect(player.x - offset, player.y, player.width, player.height);
-    
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fill();
+
     // Draw eyes
     ctx.fillStyle = '#fff';
-    ctx.fillRect(player.x + 5 - offset, player.y + 10, 8, 8);
-    ctx.fillRect(player.x + 17 - offset, player.y + 10, 8, 8);
-    
+    ctx.beginPath();
+    ctx.arc(centerX - 7, centerY - 4, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(centerX + 7, centerY - 4, 5, 0, Math.PI * 2);
+    ctx.fill();
+
     // Draw pupils
     ctx.fillStyle = '#000';
-    ctx.fillRect(player.x + 7 - offset, player.y + 12, 4, 4);
-    ctx.fillRect(player.x + 19 - offset, player.y + 12, 4, 4);
+    ctx.beginPath();
+    ctx.arc(centerX - 7, centerY - 4, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(centerX + 7, centerY - 4, 2, 0, Math.PI * 2);
+    ctx.fill();
 }
 
 // Main game loop
@@ -496,6 +626,7 @@ function gameLoop() {
         // Update entities
         platforms.forEach(p => p.update());
         enemies.forEach(e => e.update());
+        birds.forEach(b => b.update());
         coins.forEach(c => c.update());
         goal.update();
 
@@ -503,6 +634,7 @@ function gameLoop() {
         platforms.forEach(p => p.draw(cameraX));
         spikes.forEach(s => s.draw(cameraX));
         enemies.forEach(e => e.draw(cameraX));
+        birds.forEach(b => b.draw(cameraX));
         coins.filter(c => !c.collected).forEach(c => c.draw(cameraX));
         goal.draw(cameraX);
         drawPlayer();

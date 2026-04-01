@@ -19,6 +19,8 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 20px;
+    width: 100%;
+    padding: 20px;
 }
 
 .hud {
@@ -29,6 +31,8 @@ body {
     font-size: 20px;
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 1200px;
 }
 
 .instructions {
@@ -42,6 +46,29 @@ body {
     background: linear-gradient(180deg, #87ceeb 0%, #e0f6ff 100%);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     display: block;
+    width: min(100%, 1200px);
+    aspect-ratio: 1200 / 320;
+    max-height: 80vh;
+    height: auto;
+}
+
+@media (max-width: 768px) {
+    .hud {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        font-size: 16px;
+        text-align: center;
+    }
+
+    .instructions {
+        font-size: 12px;
+    }
+
+    button {
+        width: 100%;
+        max-width: 320px;
+    }
 }
 
 .game-over,
