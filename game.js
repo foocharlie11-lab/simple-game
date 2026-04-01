@@ -91,12 +91,29 @@ class Enemy {
         this.maxX = maxX;
         this.speed = 2.5;
         this.direction = 1;
+        this.velocityY = 0;
     }
 
     update() {
         this.x += this.speed * this.direction;
         if (this.x <= this.minX || this.x + this.width >= this.maxX) {
             this.direction *= -1;
+        }
+
+        this.velocityY += 0.6;
+        this.y += this.velocityY;
+
+        for (let platform of platforms) {
+            if (platform.isTouching(this)) {
+                this.y = platform.y - this.height;
+                this.velocityY = 0;
+                break;
+            }
+        }
+
+        if (this.y + this.height > canvas.height) {
+            this.y = canvas.height - this.height;
+            this.velocityY = 0;
         }
     }
 
