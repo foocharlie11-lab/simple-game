@@ -36,10 +36,10 @@ const player = {
 // Keyboard input
 const keys = {};
 window.addEventListener('keydown', (e) => {
-    keys[e.key] = true;
+    keys[e.key.toLowerCase()] = true;
 });
 window.addEventListener('keyup', (e) => {
-    keys[e.key] = false;
+    keys[e.key.toLowerCase()] = false;
 });
 
 // Platform class
@@ -574,9 +574,9 @@ function loadLevel(levelNum) {
 // Update player
 function updatePlayer() {
     // Horizontal movement
-    if (keys['ArrowLeft']) {
+    if (keys['arrowleft'] || keys['a']) {
         player.velocityX = -player.maxSpeedX;
-    } else if (keys['ArrowRight']) {
+    } else if (keys['arrowright'] || keys['d']) {
         player.velocityX = player.maxSpeedX;
     } else {
         player.velocityX *= 0.85;
@@ -585,7 +585,7 @@ function updatePlayer() {
     player.x += player.velocityX;
 
     // Jumping
-    if ((keys[' '] || keys['ArrowUp']) && player.grounded) {
+    if ((keys[' '] || keys['arrowup'] || keys['w']) && player.grounded) {
         player.velocityY = -player.jumpPower;
         player.jumping = true;
         player.grounded = false;
