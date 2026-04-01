@@ -213,6 +213,63 @@ class Bird {
     }
 }
 
+// Waterfall class
+class Waterfall {
+    constructor(x, y, width, height, offFrames = 120, onFrames = 70) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.offFrames = offFrames;
+        this.onFrames = onFrames;
+        this.timer = 0;
+        this.active = true;
+    }
+
+    update() {
+        this.timer += 1;
+        if (this.active && this.timer >= this.onFrames) {
+            this.active = false;
+            this.timer = 0;
+        } else if (!this.active && this.timer >= this.offFrames) {
+            this.active = true;
+            this.timer = 0;
+        }
+    }
+
+    draw(offset = 0) {
+        const x = this.x - offset;
+        if (this.active) {
+            ctx.fillStyle = 'rgba(52, 152, 219, 0.55)';
+            ctx.fillRect(x, this.y, this.width, this.height);
+
+            ctx.fillStyle = 'rgba(236, 240, 241, 0.45)';
+            for (let i = 0; i < 6; i++) {
+                ctx.fillRect(x + 6 + i * 6, this.y + (i % 2) * 14, 6, this.height - (i % 2) * 24);
+            }
+
+            ctx.strokeStyle = 'rgba(41, 128, 185, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'rgba(100, 150, 180, 0.3)';
+            ctx.fillRect(x, this.y, this.width, 8);
+            ctx.fillStyle = '#2980b9';
+            ctx.fillRect(x, this.y + 8, this.width, 4);
+        }
+    }
+
+    collidesWith(obj) {
+        if (!this.active) return false;
+        return (
+            obj.x < this.x + this.width &&
+            obj.x + obj.width > this.x &&
+            obj.y + obj.height > this.y &&
+            obj.y < this.y + this.height
+        );
+    }
+}
+
 // Coin class
 class Coin {
     constructor(x, y) {
@@ -384,6 +441,9 @@ const levels = [
             new Spike(1340, 340, 20, 20),
             new Spike(1700, 340, 20, 20),
         ],
+        waterfalls: [
+            new Waterfall(520, 0, 40, 220, 130, 70),
+        ],
         birds: [
             new Bird(320, 70, 260, 420, 2.2),
             new Bird(1020, 90, 960, 1120, 2.5),
@@ -421,6 +481,9 @@ const levels = [
             new Spike(620, 340, 20, 20),
             new Spike(960, 340, 20, 20),
             new Spike(1710, 340, 20, 20),
+        ],
+        waterfalls: [
+            new Waterfall(1100, 0, 40, 150, 140, 80),
         ],
         birds: [
             new Bird(520, 90, 480, 640, 2.3),
@@ -464,6 +527,9 @@ const levels = [
             new Spike(1480, 340, 20, 20),
             new Spike(1810, 340, 20, 20),
         ],
+        waterfalls: [
+            new Waterfall(1240, 0, 40, 120, 130, 70),
+        ],
         birds: [
             new Bird(240, 80, 200, 320, 3),
             new Bird(680, 95, 640, 760, 2.4),
@@ -480,6 +546,7 @@ let enemies = [];
 let coins = [];
 let spikes = [];
 let birds = [];
+let waterfalls = [];
 let goal = null;
 
 function loadLevel(levelNum) {
@@ -491,6 +558,7 @@ function loadLevel(levelNum) {
     coins = levelData.coins.map(c => new Coin(c.x, c.y));
     spikes = levelData.spikes;
     birds = levelData.birds || [];
+    waterfalls = levelData.waterfalls || [];
     goal = new Goal(levelData.goal.x, levelData.goal.y);
     
     player.x = levelData.spawnX ?? 50;
@@ -561,6 +629,13 @@ function updatePlayer() {
         }
     }
 
+    // Waterfall collision
+    for (let waterfall of waterfalls) {
+        if (waterfall.collidesWith(player)) {
+            gameState = GAME_STATE.GAME_OVER;
+        }
+    }
+
     // Spike collision
     for (let spike of spikes) {
         if (spike.collidesWith(player)) {
@@ -627,11 +702,13 @@ function gameLoop() {
         platforms.forEach(p => p.update());
         enemies.forEach(e => e.update());
         birds.forEach(b => b.update());
+        waterfalls.forEach(w => w.update());
         coins.forEach(c => c.update());
         goal.update();
 
         // Draw entities
         platforms.forEach(p => p.draw(cameraX));
+        waterfalls.forEach(w => w.draw(cameraX));
         spikes.forEach(s => s.draw(cameraX));
         enemies.forEach(e => e.draw(cameraX));
         birds.forEach(b => b.draw(cameraX));
