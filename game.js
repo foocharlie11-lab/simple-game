@@ -443,6 +443,7 @@ const levels = [
         ],
         waterfalls: [
             new Waterfall(520, 0, 40, 220, 130, 70),
+            new Waterfall(1480, 0, 40, 180, 110, 65),
         ],
         birds: [
             new Bird(320, 70, 260, 420, 2.2),
@@ -484,6 +485,7 @@ const levels = [
         ],
         waterfalls: [
             new Waterfall(1100, 0, 40, 150, 140, 80),
+            new Waterfall(720, 0, 40, 170, 120, 70),
         ],
         birds: [
             new Bird(520, 90, 480, 640, 2.3),
@@ -529,6 +531,7 @@ const levels = [
         ],
         waterfalls: [
             new Waterfall(1240, 0, 40, 120, 130, 70),
+            new Waterfall(1840, 0, 40, 160, 100, 60),
         ],
         birds: [
             new Bird(240, 80, 200, 320, 3),
